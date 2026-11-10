@@ -14,9 +14,5 @@ dependencies = [
     "openai-agents>=0.24.0",
 ]
 
-[project.scripts]
-ai-deep-research-agent = "ai_deep_research_agent:main"
-
-[build-system]
-requires = ["uv_build>=0.12.0,<0.13.0"]
-build-backend = "uv_build"
+[tool.uv]
+package = false

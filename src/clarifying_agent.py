@@ -19,12 +19,76 @@ Each option should:
 - be actionable and easy to understand
 - narrow the scope in a useful way without being overly rigid
 - help the user choose the best research direction
+- focus on a meaningful interpretation of the original query rather than a generic rewording
 
 Return the result as a list of {NUM_OF_CLARIFYING_QUESTIONS} clarifying questions. For each item, include:
-- a short reason explaining why this option is clearer than the original query
+- a short reason explaining why this option is clearer than the original question
 - the refined question text the user can select
 
-Do not output raw search terms or keyword lists. Output only the clarifying options the user can choose from.
+Output format requirements:
+- Return valid JSON matching the `Questions` schema.
+- The top-level object must contain a `clarified_questions` list.
+- Each item must have:
+  - `reason`: a concise explanation of why this option is clearer
+  - `clarified_question`: the final refined question text
+- Do not output raw search terms, keyword lists, or unrelated commentary.
+- Do not give more than {NUM_OF_CLARIFYING_QUESTIONS} options.
+
+Few-shot examples:
+
+Example 1:
+Input query: "How do I start a business?"
+Good output:
+{{
+  "clarified_questions": [
+    {{
+      "reason": "This option keeps the same core question but makes it more specific by focusing on building a business that can actually succeed.",
+      "clarified_question": "How do I start a successful business?"
+    }},
+    {{
+      "reason": "This version clarifies the question by focusing on the actions needed to begin a strong business launch.",
+      "clarified_question": "What are the steps to take to start a successful business?"
+    }},
+    {{
+      "reason": "This keeps the original intent while making the goal more tangible: what should be done to build a successful business from the beginning.",
+      "clarified_question": "What should I do to start a successful business?"
+    }}
+  ]
+}}
+
+Example 2:
+Input query: "How do I lose weight?"
+Good output:
+{{
+  "clarified_questions": [
+    {{
+      "reason": "This version is clearer because it frames the question around a practical, sustainable result rather than a vague goal.",
+      "clarified_question": "How do I lose weight healthily?"
+    }},
+    {{
+      "reason": "This keeps the same question but adds the key requirement of a sustainable and realistic approach.",
+      "clarified_question": "What should I do to lose weight in a healthy and sustainable way?"
+    }},
+    {{
+      "reason": "This clarifies the objective by focusing on a realistic and actionable path to weight loss.",
+      "clarified_question": "How can I lose weight effectively and keep it off?"
+    }}
+  ]
+}}
+
+Good clarification style:
+- Keep the same core topic as the original query.
+- Improve the phrasing and specificity without changing the subject matter.
+- Make the question clearer and more actionable.
+- Prefer better wording, not a different research angle.
+
+Bad patterns to avoid:
+- Changing the subject into a different niche or business model.
+- Creating a completely different research question.
+- Over-focusing on one subtopic so the question stops representing the original user intent.
+- Repeating the same vague idea with tiny wording changes.
+
+Now generate the clarifying questions for the actual user query.
 """
 
 class Question(BaseModel):
@@ -70,7 +134,11 @@ clarified_question_guardrail_agent = Agent(
         "- avoid redundancy, vagueness, or questions that are basically the same as the original. "
         "A bad clarification set includes questions that are too broad, too narrow, repetitive, generic, off-topic, or still ambiguous. "
         "Return whether the set is acceptable, explain why, and list only the questions that still fail to clarify the original query. "
-        "If all questions are good, set is_clarified_correctly to true and unclarified_questions to an empty list."
+        "If all questions are good, set is_clarified_correctly to true and unclarified_questions to an empty list. "
+        "Examples of good sets: a user asking 'How do I start a business?' should yield options like 'How do I start a successful business?', 'What should I do to start a successful business?', or 'What are the steps to take to start a successful business?'. "
+        "These are not different topics; they are clearer, more specific versions of the same core question. "
+        "Examples of bad sets: a completely different business niche, an off-topic question, keyword lists, or three near-identical restatements of the same vague question. "
+        "Use the original query as the reference for whether the clarifying options actually reduce ambiguity without changing the user’s intent."
     ),
     output_type=ClarifiedQuestionsReview,
 )

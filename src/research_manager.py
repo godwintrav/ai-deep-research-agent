@@ -57,6 +57,7 @@ class ResearchManager:
         self.perform_searches_tool = function_tool(self._perform_searches)
         self.write_report_tool = function_tool(self._write_report)
         self.send_email_tool = function_tool(self._send_email)
+        self.email = None
 
         self.tools = [
             self.plan_search_tool,
@@ -71,49 +72,36 @@ class ResearchManager:
             model=MODEL_NAME,
         )
 
+    def set_recipient_email(self, email):
+        self.email = email
+
     async def clarify_question(self, initial_query):
         """ Run the Clarify agent and clarify the user initil question"""
         with trace("Research trace", trace_id=self.trace_id):
             clarifying_questions = await self.get_clarifying_questions(initial_query)
             yield clarifying_questions
-        
-
-    async def run(self, query: str):
-        """ Run the deep research process, yielding the status updates and the final report"""
-        
-        with trace("Research trace", trace_id=self.trace_id):
-            yield f"Starting research. Trace: https://platform.openai.com/traces/trace?trace_id={self.trace_id}"
-            search_plan = await self.plan_searches(query)
-            yield f"Searches planned, starting {len(search_plan.searches)} searches..."     
-            search_results = await self.perform_searches(search_plan)
-            yield "Searches complete, writing report..."
-            report = await self.write_report(query, search_results)
-            yield "Report written, sending email..."
-            await self.send_email(report)
-            yield "Email sent, research complete"
-            yield report.markdown_report
 
     async def run_research_agent(self, query: str):
         task = f"""
 Follow these steps exactly once in order:
 
-1. Use the search_planner tool first to generate a search plan for the original user query.
+1. Use the search_planner tool tool first to generate a search plan for the original user query.
    Input format must be exactly:
    Query: {query}
    Do not skip this step.
 
-2. Once the search plan is ready, call perform_searches with the WebSearchPlan returned by search_planner.
+2. Once the search plan is ready, call perform_searches tool with the WebSearchPlan returned by search_planner.
    This tool executes the planned searches and returns the aggregated search results.
 
-3. After the search results are ready, call write_report with:
+3. After the search results are ready, call write_report tool with:
    - the original user query
    - the list of search results returned by perform_searches
    This tool creates the final ReportData object.
 
-4. Only after the report is ready, call send_email with the ReportData returned by write_report.
+4. Only after the report is ready, call send_email tool with the ReportData returned by write_report.
    This is the final tool call in the workflow and should only be used once.
 
-5. Once send_email returns successfully, stop immediately and return the markdown_report value from the tool as the final output.
+5. Once send_email tool returns successfully, stop immediately and return the markdown_report value from the tool as the final output.
    Do not call any more tools after step 4 succeeds.
    Do not repeat any part of the workflow after the email step.
 """
@@ -215,5 +203,11 @@ Follow these steps exactly once in order:
             The markdown_report field from the report so it can be used as the final output of the workflow.
         """
         print("sending email")
-        await Runner.run(email_agent, report.markdown_report)
+        prompt = (
+            "Send this research report by email using the exact recipient_email shown below. "
+            "You must include the recipient_email in the tool call and must not invent any other address.\n\n"
+            f"recipient_email: {self.email}\n\n"
+            f"report:\n{report.markdown_report}"
+        )
+        await Runner.run(email_agent, prompt)
         return report.markdown_report

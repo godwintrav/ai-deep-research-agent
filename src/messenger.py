@@ -10,10 +10,10 @@ EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
 EMAIL_SMTP_SERVER = os.getenv("EMAIL_SMTP_SERVER")
 EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD")
 
-def send_email(subject, text_body, html_body):
+def send_email(subject, text_body, html_body, recipient_email):
     msg = EmailMessage()
     msg["From"] = EMAIL_ADDRESS
-    msg["To"] = EMAIL_ADDRESS
+    msg["To"] = recipient_email
     msg["Subject"] = subject
     msg.set_content(text_body)
     msg.add_alternative(html_body, subtype="html")
