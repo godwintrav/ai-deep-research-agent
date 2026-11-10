@@ -1,9 +1,13 @@
+import os
+
 import gradio as gr
 from dotenv import load_dotenv
 from research_manager import ResearchManager
 from styles import CSS, JS, EXAMPLES, HEADER_HTML
 
 load_dotenv(override=True)
+
+PORT = int(os.getenv("PORT", "7860"))
 
 
 async def clarify_question(query: str, email: str):
@@ -98,7 +102,7 @@ with gr.Blocks(title="Deep Research") as ui:
 
 
 def main():
-    ui.launch(css=CSS, js=JS, theme=gr.themes.Base())
+    ui.launch(css=CSS, js=JS, theme=gr.themes.Base(), server_port=PORT)
 
 
 if __name__ == "__main__":
